@@ -1,0 +1,8 @@
+# build artifacts (none expected here, but just in case)
+target/
+*.exe
+*.wallet
+# the Kaspa clones do not belong in this repo
+kaspa-tn12/
+rusty-kaspa/
+silverscript/
