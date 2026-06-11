@@ -5,10 +5,11 @@ the baseline says HOW we work (interaction style, file discipline, the self-erec
 Together they let a fresh chat resume cleanly._
 
 _Last updated: TWO on-chain rep transitions confirmed (100->105->110). v4 = detached-verdict
-model. OFF-CHAIN ORACLE SIGNER BUILT + PROVEN (oracle_sign_verdict.rs, both self-tests pass).
-Full CSFS signing spec PINNED from txscript source. Waiting ONLY on compiler emitting
-OpCheckSigFromStack (~1wk, silverscript #122) to build the on-chain gate. Build mainnet against
-silverscript V1. Resume point for next session._
+model. OFF-CHAIN ORACLE SIGNER BUILT + PROVEN, now a STANDALONE TESTED CRATE (signer/) with
+8 cargo tests (5 are rejection tests) and GREEN GitHub Actions CI on every push. Full CSFS
+signing spec PINNED from txscript source. Waiting ONLY on compiler emitting OpCheckSigFromStack
+(~1wk, silverscript #122) to build the on-chain gate. Build mainnet against silverscript V1.
+Resume point for next session._
 
 ---
 
@@ -218,6 +219,19 @@ Candidate directions (pick per launch priorities; mainnet target):
      valid sig verifies under the node's exact schnorr check, AND a tampered verdict is
      rejected. The off-chain half of the verdict model is DONE and proven a week before the
      on-chain gate can exist. (Added blake2b_simd dep to rothschild via cargo add.)
+   - [DONE] SIGNER PROMOTED TO A STANDALONE TESTED CRATE: `signer/` in the repo
+     (crate `oracle-signer`). Layout: src/lib.rs (pure signing logic), src/main.rs (CLI),
+     tests/verdict_tests.rs (8 cargo tests). Depends only on PUBLISHED crates (secp256k1,
+     blake2b_simd, faster-hex, rand) — NO rusty-kaspa dependency, so it builds standalone in
+     minutes. 8 tests, FIVE of them rejection tests (tampered delta / nonce / covenant_id /
+     wrong-pubkey all MUST fail) — this is the accept-AND-reject coverage that makes the
+     security claim real, not hopeful. `cargo test` green locally AND on CI.
+   - [DONE] GITHUB ACTIONS CI: `.github/workflows/ci.yml` runs cargo build + test on every
+     push (working-directory: signer). GREEN on github.com/kyle4nia/oracle-protocol. fmt +
+     clippy run as non-fatal (continue-on-error). This is the public, automated proof the
+     signer builds and its tests pass — the credibility signal. (Note: Node20 deprecation
+     warning on checkout/cache actions is harmless; update to Node24-compatible versions
+     whenever. Optional polish: add a CI status badge to README.md.)
    - [ ] Spender sigScript push order (confirmed): signature(64), msg_hash(32), oracle_pubkey(32).
    - [ ] WHEN CSFS LANDS in the compiler: build the v4 contract gate —
        msg_hash = blake2b(delta||nonce||covenant_id);
