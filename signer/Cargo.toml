@@ -1,0 +1,20 @@
+[package]
+name = "oracle-signer"
+version = "0.1.0"
+edition = "2021"
+description = "Off-chain oracle verdict signer for Oracle Protocol"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "oracle_signer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "oracle_sign_verdict"
+path = "src/main.rs"
+
+[dependencies]
+secp256k1 = { version = "0.29", features = ["rand", "std"] }
+blake2b_simd = "1"
+faster-hex = "0.9"
+rand = "0.8"
