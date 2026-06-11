@@ -1,0 +1,69 @@
+pragma silverscript ^0.1.0;
+
+// ============================================================================
+// OracleRep v4 — DETACHED VERDICT model (checkDataSig).
+//
+//   *** NON-DEPLOYABLE PENDING UPSTREAM FIX ***
+//   checkDataSig is currently a NO-OP STUB in this toolchain
+//   (compile_checkdatasig_call lowers args -> OpDrop all -> OpTrue; verifies
+//   NOTHING). This contract is written for the model we WANT, ready to compile
+//   for real the moment checkDataSig is genuinely implemented. Until then it is
+//   a design target, not a deployable script. DO NOT establish a genesis on it.
+//
+// MODEL: an oracle signs a VERDICT (a piece of data: "apply this delta to this
+// covenant at this nonce"), NOT the spending transaction. The signature is a
+// PORTABLE ARTIFACT — anyone can carry it on-chain. This is the "Everyone is an
+// Oracle" primitive: authority lives in the signed verdict, not in who submits.
+//
+// Contrast with the abandoned admin-checkSig v4: checkSig authorizes "this tx"
+// (whoever holds the key must BE the submitter). checkDataSig authorizes "this
+// value" (the verdict travels independently of the submitter). The latter is
+// the protocol's actual requirement.
+// ============================================================================
+
+// repState layout (unchanged from v3): byte[8] little-endian rep value.
+// nonce: monotonic counter, part of state, prevents verdict replay.
+//   A verdict signs (covenant-bound message including the current nonce); after
+//   the spend the nonce increments, so the same signed verdict can't be reused.
+
+contract OracleRep(byte[8] init_rep, byte[8] init_nonce, byte[32] oracle_pkh) {
+    byte[8] repState   = init_rep;
+    byte[8] nonceState = init_nonce;
+
+    #[covenant(binding = auth, from = 1, to = 1, mode = transition)]
+    function update(
+        State  prev_state,
+        int    delta,
+        pubkey oracle_pk,
+        sig    oracle_sig
+    ) : (State) {
+        // 1. Oracle identity: the presented pubkey must be the genesis-committed oracle.
+        //    (Single-oracle for now; generalizes to a set / quorum later.)
+        require(blake2b(oracle_pk) == oracle_pkh);
+
+        // 2. THE PORTABLE VERDICT.
+        //    The oracle signs a message binding: the delta, the current nonce
+        //    (anti-replay), and ideally the covenant_id (so a verdict for THIS
+        //    covenant can't be carried onto another). Build the exact message
+        //    bytes the same way off-chain when producing the signature.
+        //
+        //    *** checkDataSig INSERTION POINT ***
+        //    When checkDataSig is real, this is the security gate. Until then it
+        //    is a no-op and this contract enforces NOTHING — hence non-deployable.
+        byte[8]  delta_bytes = byte[8](delta);
+        byte[16] verdict_msg = delta_bytes + prev_state.nonceState; // delta || nonce
+        require(checkDataSig(oracle_sig, verdict_msg, oracle_pk));
+
+        // 3. Apply the authorized delta.
+        int updated = int(prev_state.repState) + delta;
+        require(updated >= 0);
+
+        // 4. Advance the nonce so this verdict can't be replayed.
+        int next_nonce = int(prev_state.nonceState) + 1;
+
+        return {
+            repState:   byte[8](updated),
+            nonceState: byte[8](next_nonce)
+        };
+    }
+}

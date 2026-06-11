@@ -47,11 +47,23 @@ project is; this doc says HOW we work. Together they let a new session pick up c
 
 ## Standing technical discipline
 
-- **Source-of-truth file rule.** Every new `.rs` tool/harness is saved to
-  `C:\oracle-protocol\rust-examples\` IMMEDIATELY, in addition to the disposable build/clone
-  location (rothschild\src\bin or crypto\txscript\examples). The oracle-protocol copy is
-  canonical; the Kaspa clone is re-clonable and throwaway. Do this the moment a file is
-  created, not later.
+- **Source-of-truth file rule (with commit clause).** Every new/changed `.rs`, `.sil`, or
+  doc gets (1) saved to its canonical `C:\oracle-protocol\` location IMMEDIATELY — in
+  addition to the disposable build/clone location (rothschild\src\bin or
+  crypto\txscript\examples) — AND (2) committed to git at the next checkpoint. The
+  oracle-protocol copy is canonical; the Kaspa clone is re-clonable and throwaway. "Saved on
+  disk" is NOT "protected" — only committed-to-git is protected. Git history IS the backup.
+- **One canonical status doc — one location, one name.** It is ALWAYS
+  `C:\oracle-protocol\docs\oracle_protocol_status.md`. Never a dated variant, never a
+  root-level copy. When updating: edit, save over that exact path, commit. If a download
+  lands with a suffix (e.g. `status610.md`), the SOURCE may carry the suffix but the
+  DESTINATION always keeps the canonical name. Same for `operating_baseline.md` — one name,
+  in `docs\`.
+- **No dated-duplicate files anywhere.** Versioning is git's job, not the filename's. Want a
+  snapshot? Commit. Do NOT copy-with-a-date. Stray dated/duplicate files (`status6102026.md`,
+  root-level status copies, `*OLD.md`) are a BUG of the same class as the stale-`.sil` trap —
+  they recreate "which one is real?" confusion. Delete them AFTER confirming the canonical
+  one is current and committed.
 - **Keep paired `.sil` copies in sync.** A divergence between the oracle-protocol copy and
   any test/example copy once caused a long stale-file debugging detour. Always compile the
   oracle-protocol copy.
@@ -66,6 +78,20 @@ project is; this doc says HOW we work. Together they let a new session pick up c
   not the chat. Chats compact and lose detail; the doc and the files in `C:\oracle-protocol`
   do not. Keep the doc current after every meaningful step. A fresh chat resumes from the
   doc, not from conversation history.
+
+### Checkpoint & session rituals
+- **Commit at checkpoints, not every edit.** A checkpoint is: a tool proven working, the
+  status doc updated, a design decision settled, or session end. This keeps the
+  one-command-at-a-time flow intact (no git command after every single edit) while making
+  sure real work gets protected at natural seams. Claude proposes the commit at these moments
+  rather than leaving it implicit.
+- **End-of-session checkpoint (a STANDING RITUAL — Claude initiates it).** Before wrapping a
+  session, Claude proactively runs / prompts the git status check and commits outstanding
+  real work, so nothing valuable is left untracked between sessions. This is Claude's
+  responsibility to surface, not the user's to remember. The check:
+    `cd /d C:\oracle-protocol && git status`
+  Anything real and untracked gets added and committed with a descriptive message. Stray
+  duplicates get flagged for deletion (after confirming canonical-and-committed).
 
 ---
 

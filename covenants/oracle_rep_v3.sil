@@ -1,12 +1,12 @@
 pragma silverscript ^0.1.0;
-contract OracleRep(
-    byte[8] repState,
-) {
-    entrypoint function update(int delta) {
-        int updated = int(repState) + delta;
+contract OracleRep(byte[8] init_rep) {
+    byte[8] repState = init_rep;
+    #[covenant(binding = cov, from = 1, to = 1, mode = transition)]
+     function update(State prev_state, int delta) : (State) {
+        int updated = int(prev_state.repState) + delta;
         require(updated >= 0);
-        byte[] newContract = 0x08 + byte[8](updated) + this.activeScriptPubKey.split(9).1;
-        byte[35] newContractLock = new ScriptPubKeyP2SH(blake2b(newContract));
-        require(tx.outputs[0].scriptPubKey == byte[](newContractLock));
+        return {
+            repState: byte[8](updated)
+        };
     }
 }

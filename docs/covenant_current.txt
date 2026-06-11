@@ -1,0 +1,483 @@
+{
+  "contract_name": "OracleRep",
+  "compiler_version": "0.1.0",
+  "script": [
+    8,
+    100,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    82,
+    121,
+    147,
+    118,
+    0,
+    162,
+    105,
+    185,
+    203,
+    81,
+    156,
+    105,
+    118,
+    88,
+    205,
+    1,
+    8,
+    124,
+    126,
+    185,
+    118,
+    201,
+    118,
+    1,
+    68,
+    148,
+    89,
+    147,
+    124,
+    188,
+    126,
+    170,
+    2,
+    0,
+    0,
+    1,
+    170,
+    126,
+    1,
+    32,
+    126,
+    124,
+    126,
+    1,
+    135,
+    126,
+    185,
+    0,
+    204,
+    195,
+    135,
+    105,
+    0,
+    122,
+    117,
+    117,
+    117,
+    81
+  ],
+  "ast": {
+    "pragma": {
+      "name": "silverscript",
+      "value": "^0.1.0",
+      "span": "pragma silverscript ^0.1.0;",
+      "name_span": "silverscript",
+      "value_span": "^0.1.0"
+    },
+    "name": "OracleRep",
+    "params": [
+      {
+        "type_ref": {
+          "base": "byte",
+          "array_dims": [
+            {
+              "kind": "fixed",
+              "value": 8
+            }
+          ]
+        },
+        "name": "init_rep",
+        "span": "byte[8] init_rep",
+        "type_span": "byte[8]",
+        "name_span": "init_rep"
+      }
+    ],
+    "fields": [
+      {
+        "type_ref": {
+          "base": "byte",
+          "array_dims": [
+            {
+              "kind": "fixed",
+              "value": 8
+            }
+          ]
+        },
+        "name": "repState",
+        "expr": {
+          "kind": "identifier",
+          "data": "init_rep",
+          "span": "init_rep"
+        },
+        "span": "byte[8] repState = init_rep;",
+        "type_span": "byte[8]",
+        "name_span": "repState"
+      }
+    ],
+    "constants": [],
+    "functions": [
+      {
+        "name": "__covenant_policy_update",
+        "params": [
+          {
+            "type_ref": {
+              "base": "State"
+            },
+            "name": "prev_state",
+            "span": "State prev_state",
+            "type_span": "State ",
+            "name_span": "prev_state"
+          },
+          {
+            "type_ref": {
+              "base": "int"
+            },
+            "name": "delta",
+            "span": "int delta",
+            "type_span": "int ",
+            "name_span": "delta"
+          }
+        ],
+        "entrypoint": false,
+        "return_types": [
+          {
+            "base": "State"
+          }
+        ],
+        "returns_tuple": true,
+        "body": [
+          {
+            "kind": "variable_definition",
+            "data": {
+              "type_ref": {
+                "base": "int"
+              },
+              "modifiers": [],
+              "name": "updated",
+              "expr": {
+                "kind": "binary",
+                "data": {
+                  "op": "add",
+                  "left": {
+                    "kind": "call",
+                    "data": {
+                      "name": "int",
+                      "args": [
+                        {
+                          "kind": "field_access",
+                          "data": {
+                            "source": {
+                              "kind": "identifier",
+                              "data": "prev_state",
+                              "span": "prev_state"
+                            },
+                            "field": "repState",
+                            "field_span": "repState"
+                          },
+                          "span": "prev_state.repState"
+                        }
+                      ],
+                      "name_span": "int"
+                    },
+                    "span": "int(prev_state.repState)"
+                  },
+                  "right": {
+                    "kind": "identifier",
+                    "data": "delta",
+                    "span": "delta"
+                  }
+                },
+                "span": "int(prev_state.repState) + delta"
+              },
+              "span": "int updated = int(prev_state.repState) + delta;",
+              "type_span": "int ",
+              "modifier_spans": [],
+              "name_span": "updated"
+            }
+          },
+          {
+            "kind": "require",
+            "data": {
+              "expr": {
+                "kind": "binary",
+                "data": {
+                  "op": "ge",
+                  "left": {
+                    "kind": "identifier",
+                    "data": "updated",
+                    "span": "updated"
+                  },
+                  "right": {
+                    "kind": "int",
+                    "data": 0,
+                    "span": "0"
+                  }
+                },
+                "span": "updated >= 0"
+              },
+              "message": null,
+              "span": "require(updated >= 0);",
+              "message_span": null
+            }
+          },
+          {
+            "kind": "return",
+            "data": {
+              "exprs": [
+                {
+                  "kind": "state_object",
+                  "data": [
+                    {
+                      "name": "repState",
+                      "expr": {
+                        "kind": "call",
+                        "data": {
+                          "name": "byte[8]",
+                          "args": [
+                            {
+                              "kind": "identifier",
+                              "data": "updated",
+                              "span": "updated"
+                            }
+                          ],
+                          "name_span": "byte[8]"
+                        },
+                        "span": "byte[8](updated)"
+                      },
+                      "span": "repState: byte[8](updated)\r\n        ",
+                      "name_span": "repState"
+                    }
+                  ],
+                  "span": "{\r\n            repState: byte[8](updated)\r\n        }"
+                }
+              ],
+              "span": "return {\r\n            repState: byte[8](updated)\r\n        };"
+            }
+          }
+        ],
+        "return_type_spans": [
+          "State"
+        ],
+        "span": "#[covenant(binding = auth, from = 1, to = 1, mode = transition)]\r\n     function update(State prev_state, int delta) : (State) {\r\n        int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };\r\n    }",
+        "name_span": "update",
+        "body_span": "int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };"
+      },
+      {
+        "name": "__covenant_entrypoint_auth_update",
+        "params": [
+          {
+            "type_ref": {
+              "base": "int"
+            },
+            "name": "delta",
+            "span": "int delta",
+            "type_span": "int ",
+            "name_span": "delta"
+          }
+        ],
+        "entrypoint": true,
+        "return_types": [],
+        "returns_tuple": false,
+        "body": [
+          {
+            "kind": "variable_definition",
+            "data": {
+              "type_ref": {
+                "base": "int"
+              },
+              "modifiers": [],
+              "name": "__auth_out_count",
+              "expr": {
+                "kind": "call",
+                "data": {
+                  "name": "OpAuthOutputCount",
+                  "args": [
+                    {
+                      "kind": "nullary",
+                      "data": "active_input_index",
+                      "span": "<synthetic>"
+                    }
+                  ],
+                  "name_span": "<synthetic>"
+                },
+                "span": "<synthetic>"
+              },
+              "span": "<synthetic>",
+              "type_span": "<synthetic>",
+              "modifier_spans": [],
+              "name_span": "<synthetic>"
+            }
+          },
+          {
+            "kind": "variable_definition",
+            "data": {
+              "type_ref": {
+                "base": "State"
+              },
+              "modifiers": [],
+              "name": "prev_state",
+              "expr": {
+                "kind": "state_object",
+                "data": [
+                  {
+                    "name": "repState",
+                    "expr": {
+                      "kind": "identifier",
+                      "data": "repState",
+                      "span": "<synthetic>"
+                    },
+                    "span": "<synthetic>",
+                    "name_span": "<synthetic>"
+                  }
+                ],
+                "span": "<synthetic>"
+              },
+              "span": "<synthetic>",
+              "type_span": "<synthetic>",
+              "modifier_spans": [],
+              "name_span": "<synthetic>"
+            }
+          },
+          {
+            "kind": "function_call_assign",
+            "data": {
+              "bindings": [
+                {
+                  "type_ref": {
+                    "base": "State"
+                  },
+                  "name": "__cov_new_state",
+                  "span": "<synthetic>",
+                  "type_span": "<synthetic>",
+                  "name_span": "<synthetic>"
+                }
+              ],
+              "name": "__covenant_policy_update",
+              "args": [
+                {
+                  "kind": "identifier",
+                  "data": "prev_state",
+                  "span": "<synthetic>"
+                },
+                {
+                  "kind": "identifier",
+                  "data": "delta",
+                  "span": "<synthetic>"
+                }
+              ],
+              "span": "<synthetic>",
+              "name_span": "<synthetic>"
+            }
+          },
+          {
+            "kind": "require",
+            "data": {
+              "expr": {
+                "kind": "binary",
+                "data": {
+                  "op": "eq",
+                  "left": {
+                    "kind": "identifier",
+                    "data": "__auth_out_count",
+                    "span": "<synthetic>"
+                  },
+                  "right": {
+                    "kind": "int",
+                    "data": 1,
+                    "span": "<synthetic>"
+                  }
+                },
+                "span": "<synthetic>"
+              },
+              "message": null,
+              "span": "<synthetic>",
+              "message_span": null
+            }
+          },
+          {
+            "kind": "variable_definition",
+            "data": {
+              "type_ref": {
+                "base": "int"
+              },
+              "modifiers": [],
+              "name": "__cov_out_idx",
+              "expr": {
+                "kind": "call",
+                "data": {
+                  "name": "OpAuthOutputIdx",
+                  "args": [
+                    {
+                      "kind": "nullary",
+                      "data": "active_input_index",
+                      "span": "<synthetic>"
+                    },
+                    {
+                      "kind": "int",
+                      "data": 0,
+                      "span": "<synthetic>"
+                    }
+                  ],
+                  "name_span": "<synthetic>"
+                },
+                "span": "<synthetic>"
+              },
+              "span": "<synthetic>",
+              "type_span": "<synthetic>",
+              "modifier_spans": [],
+              "name_span": "<synthetic>"
+            }
+          },
+          {
+            "kind": "function_call",
+            "data": {
+              "name": "validateOutputState",
+              "args": [
+                {
+                  "kind": "identifier",
+                  "data": "__cov_out_idx",
+                  "span": "<synthetic>"
+                },
+                {
+                  "kind": "identifier",
+                  "data": "__cov_new_state",
+                  "span": "<synthetic>"
+                }
+              ],
+              "span": "<synthetic>",
+              "name_span": "<synthetic>"
+            }
+          }
+        ],
+        "return_type_spans": [],
+        "span": "#[covenant(binding = auth, from = 1, to = 1, mode = transition)]\r\n     function update(State prev_state, int delta) : (State) {\r\n        int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };\r\n    }",
+        "name_span": "update",
+        "body_span": "int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };"
+      }
+    ],
+    "span": "contract OracleRep(byte[8] init_rep) {\r\n    byte[8] repState = init_rep;\r\n\r\n    #[covenant(binding = auth, from = 1, to = 1, mode = transition)]\r\n     function update(State prev_state, int delta) : (State) {\r\n        int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };\r\n    }\r\n}",
+    "name_span": "OracleRep"
+  },
+  "abi": [
+    {
+      "name": "__covenant_entrypoint_auth_update",
+      "inputs": [
+        {
+          "name": "delta",
+          "type_name": "int"
+        }
+      ]
+    }
+  ],
+  "without_selector": true,
+  "state_layout": {
+    "start": 0,
+    "len": 9
+  },
+  "debug_info": null
+}
