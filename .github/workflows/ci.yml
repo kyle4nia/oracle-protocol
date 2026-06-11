@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: signer
     steps:
       - uses: actions/checkout@v4
 
@@ -21,8 +24,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+            signer/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('signer/Cargo.lock') }}
 
       - name: Build
         run: cargo build --verbose
