@@ -10,12 +10,12 @@ REM   covenant-check.bat rebaseline
 
 setlocal
 set SIL=C:\oracle-protocol\covenants\oracle_rep_v3.sil
-set CTOR=C:\kaspa-tn12\silverscript\oracle_ctor_v3.json
+set CTOR=C:\oracle-protocol\covenants\oracle_ctor_v3.json
 set BASELINE=C:\oracle-protocol\docs\covenant_baseline.txt
 set CURRENT=C:\oracle-protocol\docs\covenant_current.txt
 
 echo Recompiling oracle_rep_v3.sil ...
-cd /d C:\kaspa-tn12\silverscript
+cd /d C:\kaspa-dev\silverscript
 cargo run --bin silverc -- "%SIL%" --ctor "%CTOR%" -c > "%CURRENT%" 2>nul
 
 if "%~1"=="rebaseline" (

@@ -51,7 +51,7 @@ Want `TcpTestSucceeded : True`.
 
 Launch the interactive shell (cmd):
 ```
-cd /d C:\kaspa-tn12\rusty-kaspa && cargo run --release --bin kaspa-cli
+cd /d C:\kaspa-dev\rusty-kaspa && cargo run --release --bin kaspa-cli
 ```
 
 Then at the `$` prompt (inside the shell):
@@ -91,12 +91,12 @@ If `connect` is rejected, try `connect ws://192.168.0.206:17210`, or
 
 rep=100:
 ```
-cd /d C:\kaspa-tn12\silverscript && cargo run --bin silverc -- C:\oracle-protocol\covenants\oracle_rep_v3.sil --ctor C:\kaspa-tn12\silverscript\oracle_ctor_v3.json -c
+cd /d C:\kaspa-dev\silverscript && cargo run --bin silverc -- C:\oracle-protocol\covenants\oracle_rep_v3.sil --ctor C:\oracle-protocol\covenants\oracle_ctor_v3.json -c
 ```
 
 rep=105:
 ```
-cd /d C:\kaspa-tn12\silverscript && cargo run --bin silverc -- C:\oracle-protocol\covenants\oracle_rep_v3.sil --ctor C:\kaspa-tn12\silverscript\oracle_ctor_105.json -c
+cd /d C:\kaspa-dev\silverscript && cargo run --bin silverc -- C:\oracle-protocol\covenants\oracle_rep_v3.sil --ctor C:\oracle-protocol\covenants\oracle_ctor_105.json -c
 ```
 
 ---
@@ -105,13 +105,13 @@ cd /d C:\kaspa-tn12\silverscript && cargo run --bin silverc -- C:\oracle-protoco
 
 Verify the rep=100 -> rep=105 spend (want "COVENANT PASSED"):
 ```
-cd /d C:\kaspa-tn12\rusty-kaspa && cargo run --release --example oracle_spend_verify
+cd /d C:\kaspa-dev\rusty-kaspa && cargo run --release --example oracle_spend_verify
 ```
 
 Derive addresses:
 ```
-cd /d C:\kaspa-tn12\rusty-kaspa && cargo run --release --example derive_v3_100
-cd /d C:\kaspa-tn12\rusty-kaspa && cargo run --release --example derive_v3_105
+cd /d C:\kaspa-dev\rusty-kaspa && cargo run --release --example derive_v3_100
+cd /d C:\kaspa-dev\rusty-kaspa && cargo run --release --example derive_v3_105
 ```
 
 ---
@@ -121,7 +121,7 @@ cd /d C:\kaspa-tn12\rusty-kaspa && cargo run --release --example derive_v3_105
 The most repeated workflow. After editing a harness in
 `C:\oracle-protocol\rust-examples`, copy it into the clone before building:
 ```
-copy /Y C:\oracle-protocol\rust-examples\<file>.rs C:\kaspa-tn12\rusty-kaspa\crypto\txscript\examples\<file>.rs
+copy /Y C:\oracle-protocol\rust-examples\<file>.rs C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples\<file>.rs
 ```
 Then run with `cargo run --release --example <name>` from the rusty-kaspa dir.
 
@@ -131,9 +131,9 @@ Then run with `cargo run --release --example <name>` from the rusty-kaspa dir.
 
 The Kaspa clone is disposable. To rebuild it:
 ```
-cd /d C:\kaspa-tn12 && git clone https://github.com/kaspanet/rusty-kaspa.git rusty-kaspa
-cd /d C:\kaspa-tn12\rusty-kaspa && git checkout tn10-toc3
-copy C:\oracle-protocol\rust-examples\*.rs C:\kaspa-tn12\rusty-kaspa\crypto\txscript\examples\
+cd /d C:\kaspa-dev && git clone https://github.com/kaspanet/rusty-kaspa.git rusty-kaspa
+cd /d C:\kaspa-dev\rusty-kaspa && git checkout v2.0.1
+copy C:\oracle-protocol\rust-examples\*.rs C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples\
 ```
 
 ---
@@ -154,8 +154,8 @@ copy C:\oracle-protocol\rust-examples\*.rs C:\kaspa-tn12\rusty-kaspa\crypto\txsc
 | Source of truth | `C:\oracle-protocol` |
 | Covenants (.sil) | `C:\oracle-protocol\covenants` |
 | Rust harnesses | `C:\oracle-protocol\rust-examples` |
-| silverscript | `C:\kaspa-tn12\silverscript` |
-| ctor JSONs | `C:\kaspa-tn12\silverscript\oracle_ctor_v3.json` / `oracle_ctor_105.json` |
-| rusty-kaspa clone | `C:\kaspa-tn12\rusty-kaspa` |
-| examples (build dir) | `C:\kaspa-tn12\rusty-kaspa\crypto\txscript\examples` |
+| silverscript | `C:\kaspa-dev\silverscript` |
+| ctor JSONs | `C:\oracle-protocol\covenants\oracle_ctor_v3.json` / `oracle_ctor_105.json` |
+| rusty-kaspa clone | `C:\kaspa-dev\rusty-kaspa` |
+| examples (build dir) | `C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples` |
 | node binaries | `C:\kaspatestnet10` (PsychoNode) |

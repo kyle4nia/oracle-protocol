@@ -7,14 +7,14 @@ echo.
 echo ------------------------------------------------------------
 echo  [1/3] SILVERSCRIPT commits (empty = up to date)
 echo ------------------------------------------------------------
-cd /d C:\kaspa-tn12\silverscript
+cd /d C:\kaspa-dev\silverscript
 git fetch origin
 git log HEAD..origin/master --oneline
 echo.
 echo ------------------------------------------------------------
 echo  [2/3] RUSTY-KASPA new tags (look for anything past tn10-toc3)
 echo ------------------------------------------------------------
-cd /d C:\kaspa-tn12\rusty-kaspa
+cd /d C:\kaspa-dev\rusty-kaspa
 git fetch origin --tags
 git tag --list "tn10*" "v*toc*"
 echo.

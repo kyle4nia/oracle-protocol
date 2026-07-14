@@ -6,7 +6,7 @@ REM rusty-kaspa examples dir, then runs it. One step instead of three.
 
 setlocal
 set SRC=C:\oracle-protocol\rust-examples
-set DST=C:\kaspa-tn12\rusty-kaspa\crypto\txscript\examples
+set DST=C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples
 set NAME=%~1
 
 if "%NAME%"=="" (
@@ -33,7 +33,7 @@ copy /Y "%SRC%\%NAME%.rs" "%DST%\%NAME%.rs"
 echo.
 echo Running example: %NAME%
 echo ------------------------------------------------------------
-cd /d C:\kaspa-tn12\rusty-kaspa
+cd /d C:\kaspa-dev\rusty-kaspa
 cargo run --release --example %NAME%
 echo ------------------------------------------------------------
 echo.

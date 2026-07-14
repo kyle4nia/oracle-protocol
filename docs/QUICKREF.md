@@ -34,10 +34,10 @@ source of truth   : C:\oracle-protocol
 covenants (.sil)  : C:\oracle-protocol\covenants
 rust harnesses    : C:\oracle-protocol\rust-examples
 docs + helpers    : C:\oracle-protocol\docs
-silverscript      : C:\kaspa-tn12\silverscript
-ctor v3 / 105     : C:\kaspa-tn12\silverscript\oracle_ctor_v3.json  /  oracle_ctor_105.json
-rusty-kaspa clone : C:\kaspa-tn12\rusty-kaspa
-examples build dir: C:\kaspa-tn12\rusty-kaspa\crypto\txscript\examples
+silverscript      : C:\kaspa-dev\silverscript
+ctor v3 / 105     : C:\oracle-protocol\covenants\oracle_ctor_v3.json  /  oracle_ctor_105.json
+rusty-kaspa clone : C:\kaspa-dev\rusty-kaspa
+examples build dir: C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples
 
 ## Helper scripts (in C:\oracle-protocol\docs)
 check-updates.bat              : pre-session upstream-change check
