@@ -460,7 +460,7 @@
         "body_span": "int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };"
       }
     ],
-    "span": "contract OracleRep(byte[8] init_rep) {\r\n    byte[8] repState = init_rep;\r\n\r\n    #[covenant(binding = auth, from = 1, to = 1, mode = transition)]\r\n     function update(State prev_state, int delta) : (State) {\r\n        int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };\r\n    }\r\n}",
+    "span": "contract OracleRep(byte[8] init_rep) {\r\n    byte[8] repState = init_rep;\r\n    #[covenant(binding = auth, from = 1, to = 1, mode = transition)]\r\n     function update(State prev_state, int delta) : (State) {\r\n        int updated = int(prev_state.repState) + delta;\r\n        require(updated >= 0);\r\n        return {\r\n            repState: byte[8](updated)\r\n        };\r\n    }\r\n}",
     "name_span": "OracleRep"
   },
   "abi": [

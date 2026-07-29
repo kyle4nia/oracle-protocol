@@ -1,30 +1,13 @@
 pragma silverscript ^0.1.0;
-
-// ============================================================================
-// OracleRep v4 — DETACHED VERDICT model (checkDataSig).
+// OracleRep v4 - DETACHED VERDICT model (checkSigFromStack).
 //
-//   *** NON-DEPLOYABLE PENDING UPSTREAM FIX ***
-//   checkDataSig is currently a NO-OP STUB in this toolchain
-//   (compile_checkdatasig_call lowers args -> OpDrop all -> OpTrue; verifies
-//   NOTHING). This contract is written for the model we WANT, ready to compile
-//   for real the moment checkDataSig is genuinely implemented. Until then it is
-//   a design target, not a deployable script. DO NOT establish a genesis on it.
+// An oracle signs a VERDICT (delta + nonce + covenant_id), not the spending tx.
+// Anyone can carry the signed verdict on-chain. Authority lives in the verdict,
+// not in who submits. This is the "Everyone is an Oracle" primitive.
 //
-// MODEL: an oracle signs a VERDICT (a piece of data: "apply this delta to this
-// covenant at this nonce"), NOT the spending transaction. The signature is a
-// PORTABLE ARTIFACT — anyone can carry it on-chain. This is the "Everyone is an
-// Oracle" primitive: authority lives in the signed verdict, not in who submits.
-//
-// Contrast with the abandoned admin-checkSig v4: checkSig authorizes "this tx"
-// (whoever holds the key must BE the submitter). checkDataSig authorizes "this
-// value" (the verdict travels independently of the submitter). The latter is
-// the protocol's actual requirement.
-// ============================================================================
-
-// repState layout (unchanged from v3): byte[8] little-endian rep value.
-// nonce: monotonic counter, part of state, prevents verdict replay.
-//   A verdict signs (covenant-bound message including the current nonce); after
-//   the spend the nonce increments, so the same signed verdict can't be reused.
+// State layout: repState(8B) + nonceState(8B) = 16 bytes.
+// Verdict format: delta(8B LE) || nonce(8B LE) || covenant_id(32B) = 48 bytes.
+// msg_hash = blake2b(verdict_bytes), signed with BIP340 schnorr.
 
 contract OracleRep(byte[8] init_rep, byte[8] init_nonce, byte[32] oracle_pkh) {
     byte[8] repState   = init_rep;
@@ -32,33 +15,30 @@ contract OracleRep(byte[8] init_rep, byte[8] init_nonce, byte[32] oracle_pkh) {
 
     #[covenant(binding = auth, from = 1, to = 1, mode = transition)]
     function update(
-        State  prev_state,
-        int    delta,
-        pubkey oracle_pk,
-        sig    oracle_sig
+        State   prev_state,
+        int     delta,
+        pubkey  oracle_pk,
+        datasig oracle_sig
     ) : (State) {
-        // 1. Oracle identity: the presented pubkey must be the genesis-committed oracle.
-        //    (Single-oracle for now; generalizes to a set / quorum later.)
+        // 1. Oracle identity: presented pubkey must match genesis-committed hash.
         require(blake2b(oracle_pk) == oracle_pkh);
 
-        // 2. THE PORTABLE VERDICT.
-        //    The oracle signs a message binding: the delta, the current nonce
-        //    (anti-replay), and ideally the covenant_id (so a verdict for THIS
-        //    covenant can't be carried onto another). Build the exact message
-        //    bytes the same way off-chain when producing the signature.
-        //
-        //    *** checkDataSig INSERTION POINT ***
-        //    When checkDataSig is real, this is the security gate. Until then it
-        //    is a no-op and this contract enforces NOTHING — hence non-deployable.
-        byte[8]  delta_bytes = byte[8](delta);
-        byte[16] verdict_msg = delta_bytes + prev_state.nonceState; // delta || nonce
-        require(checkDataSig(oracle_sig, verdict_msg, oracle_pk));
+        // 2. Covenant identity: bind verdict to THIS covenant.
+        byte[32] covenant_id = OpInputCovenantId(this.activeInputIndex);
 
-        // 3. Apply the authorized delta.
+        // 3. Verdict: delta(8B) || nonce(8B) || covenant_id(32B) -> blake2b -> 32B digest.
+        byte[8] delta_bytes = byte[8](delta);
+        byte[] verdict_bytes = delta_bytes + prev_state.nonceState + covenant_id;
+        byte[32] msg_hash = blake2b(verdict_bytes);
+
+        // 4. CSFS gate: verify oracle signed this exact verdict.
+        require(checkSigFromStack(oracle_sig, msg_hash, oracle_pk));
+
+        // 5. Apply delta.
         int updated = int(prev_state.repState) + delta;
         require(updated >= 0);
 
-        // 4. Advance the nonce so this verdict can't be replayed.
+        // 6. Advance nonce (anti-replay).
         int next_nonce = int(prev_state.nonceState) + 1;
 
         return {

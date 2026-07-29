@@ -6,3 +6,4 @@ target/
 kaspa-tn12/
 rusty-kaspa/
 silverscript/
+*.oracle-key.txt
