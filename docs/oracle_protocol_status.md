@@ -205,7 +205,7 @@ TN10 at dev-team direction. PsychoNode hosted the TN10 node through the v3 proof
 
 _Append-only. Newest first._
 
----sig #015 | 2026-07-29 | scope: v4 genesis established on TN10 (tx c83878..., covenant_id 4af6f785..., addr kaspatest:pqm9qv...lm3wux3, 9999.998 tKAS parked at head); harness-home drift corrected (RPC harnesses live in rothschild\examples\ not txscript\examples\; earlier note was overgeneralized from local-VM case); v2.0.1 API drift on TransactionInput (mass -> compute_commit) surfaced via compile errors and fixed via rothschild main.rs:704 pattern; status doc updated | head: af6414c
+---sig #015 | 2026-07-29 | scope: v4 genesis established on TN10 (tx c83878..., covenant_id 4af6f785..., addr kaspatest:pqm9qv...lm3wux3, 9999.998 tKAS parked at head); harness-home drift corrected (RPC harnesses live in rothschild\examples\ not txscript\examples\; earlier note was overgeneralized from local-VM case); v2.0.1 API drift on TransactionInput (mass -> compute_commit) surfaced via compile errors and fixed via rothschild main.rs:704 pattern; status doc updated | head: 25ef286
 
 ---sig #014 | 2026-07-29 | scope: v3 recompile fix (binding=cov→auth, bytecode identical,
 rebaselined); v4 contract written against real checkSigFromStack + compiles; byte-order &
