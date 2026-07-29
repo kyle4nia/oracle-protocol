@@ -3,20 +3,21 @@
 _**Read `operating_baseline.md` alongside this doc.** This says WHERE the project is;
 the baseline says HOW we work._
 
-_Last updated: 2026-07-29. **v4 COVENANT LIVE ON TN10** (genesis tx c83878...c2d,
-covenant_id 4af6f785..., 9999.998 tKAS parked). Steps 1-7 of the v4 plan are DONE.
-Resume at step 8: first authenticated transition. Mainnet still gated on SilverScript V1
-(zero releases, Experimental)._
+_Last updated: 2026-07-29. **v4 AUTHENTICATED LOOP LIVE ON TN10.** Steps 1-8 DONE:
+genesis + two authenticated hops (rep 100->105->110) + on-chain replay rejection.
+Generalized spender drives every hop with no edits. Resume at step 9 (repo cleanup
+toward v0.1.0). Mainnet still gated on SilverScript V1 (zero releases, Experimental)._
 
 ---
 
 ## Where we are in one sentence
 
-The v3 reputation covenant is live on TN10 (keyless PoC, rep=110 head); the v4
-detached-verdict covenant (`checkSigFromStack`) is now ALSO live on TN10: genesis
-established at covenant_id 4af6f785..., head 9999.998 tKAS parked at
-kaspatest:pqm9qv...lm3wux3. Next: first authenticated transition (the spend after
-genesis is what the CSFS gate actually guards).
+The v4 detached-verdict covenant is LIVE and MOVING on TN10: two authenticated
+transitions accepted (rep 100->105->110, nonce 0->1->2), one stale-nonce replay
+rejected by the engine, all under covenant_id 4af6f785...; the generalized spender
+(`oracle_v4_spend.rs`) scans the state trajectory and drives hops with no edits.
+The "Everyone is an Oracle" loop works. Next: cleanup toward the v0.1.0 release.
+(v3 keyless PoC chain also still live, untouched, rep=110 head.)
 
 ---
 
@@ -111,9 +112,10 @@ v3 harness). The earlier "txscript examples" blanket was wrong for RPC.
 - **v4 contract written + compiles + PROVEN** (see v4 section above).
 - **Off-chain verdict signer:** standalone crate `signer/` (`oracle-signer`), 8 tests
   (5 rejection), green CI, no rusty-kaspa dependency.
-- **Generalized spender** (`oracle_submit_spend.rs`): scans for live head, reads rep, applies
-  delta — drives every hop with no edits. (Written for v3; will need v4 sigScript push order
-  for authenticated hops — verify before step 8.)
+- **Generalized v4 spender** (`oracle_v4_spend.rs`): scans trajectory, signs live-state
+  verdicts, drives authenticated hops with no edits. Proven across hops 1 and 2.
+- **v3 spender** (`oracle_submit_spend.rs`): superseded by the v4 spender for all new
+  work; keep only as v3-chain historical tooling. Candidate for step 9 retirement.
 
 ## v3 ground-truth artifacts
 
@@ -137,9 +139,17 @@ v3 harness). The earlier "txscript examples" blanket was wrong for RPC.
    - head UTXO: c83878...c2d:0, value 999999800000 sompi
    - harness: `oracle_v4_genesis.rs` (canonical in rust-examples\; runs from
      rothschild\examples\, see toolchain layout).
-8. [ ] **First authenticated transition on TN10** — the spend after genesis, carrying a real
-   signed verdict. This is the live "Everyone is an Oracle" loop. Verify the spender's
-   sigScript push order matches (delta, oracle_pk, oracle_sig, redeem).
+8. [X] **DONE.** Authenticated loop proven on-chain, both directions:
+   - accept #1: eba6dee9b9d77be1322afba6ce2f409ced4c38a51cbae9db04abb690144c80ee (rep 100->105, nonce 0->1)
+   - replay reject: 2fe13331... (stale nonce=0 verdict vs nonce=1 state; engine "false stack entry")
+   - accept #2 via generalized spender: 3fd9e2d9bc07d9cced502d5ef19fd017f65fb7e027e1b37410bbaaeeeba15133 (rep 105->110, nonce 1->2)
+   - current head: 3fd9e2d...5133:0, rep=110 nonce=2, 999999400000 sompi
+   - `oracle_v4_spend.rs` (canonical rust-examples\, runs from rothschild\examples\):
+     scans the (rep,nonce) trajectory in one batched RPC call, signs against LIVE state,
+     full 8-byte LE state writes (rep>255 safe). ASSUMES uniform delta=5 history.
+   - mempool standardness: compute mass 1868 needs fee >= 186800 sompi; FEE=200000.
+   - oracle key file is the labeled signer dump; spender parses hex off the
+     oracle_secret line (trailing comment tolerated).
 
 Then toward a simple formal release (v0.1.0 tag, TN10, single oracle):
 9. [ ] Repo cleanup: retire `oracle_submit_read.rs` (stale) and dead ctor `oracle_ctor.json`;
@@ -204,6 +214,13 @@ TN10 at dev-team direction. PsychoNode hosted the TN10 node through the v3 proof
 ## SESSION SIGNATURES
 
 _Append-only. Newest first._
+
+---sig #016 | 2026-07-29 | scope: step 8 DONE, authenticated loop live on TN10 (accept
+eba6dee... rep 100->105; on-chain replay REJECT 2fe13331... stale nonce, engine false-stack;
+accept 3fd9e2d... rep 105->110 via generalized spender); oracle_v4_spend.rs generalized
+(trajectory scanner, one batched RPC, live-state verdicts, 8-byte LE state writes, uniform-
+delta assumption flagged); fee floor gotcha (mass 1868 -> min 186800 sompi); key-file parse
+fixed (labeled dump, trailing comment); v3 spender marked superseded | head: (post-#016)
 
 ---sig #015 | 2026-07-29 | scope: v4 genesis established on TN10 (tx c83878..., covenant_id 4af6f785..., addr kaspatest:pqm9qv...lm3wux3, 9999.998 tKAS parked at head); harness-home drift corrected (RPC harnesses live in rothschild\examples\ not txscript\examples\; earlier note was overgeneralized from local-VM case); v2.0.1 API drift on TransactionInput (mass -> compute_commit) surfaced via compile errors and fixed via rothschild main.rs:704 pattern; status doc updated | head: 25ef286
 
