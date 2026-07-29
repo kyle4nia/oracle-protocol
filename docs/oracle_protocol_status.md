@@ -3,18 +3,20 @@
 _**Read `operating_baseline.md` alongside this doc.** This says WHERE the project is;
 the baseline says HOW we work._
 
-_Last updated: 2026-07-29. **v4 CSFS GATE PROVEN** in local VM (6-case accept/reject,
-all correct). Steps 1-6 of the v4 plan are DONE. Resume at step 7: fresh v4 genesis on
-TN10. Mainnet still gated on SilverScript V1 (zero releases, Experimental)._
+_Last updated: 2026-07-29. **v4 COVENANT LIVE ON TN10** (genesis tx c83878...c2d,
+covenant_id 4af6f785..., 9999.998 tKAS parked). Steps 1-7 of the v4 plan are DONE.
+Resume at step 8: first authenticated transition. Mainnet still gated on SilverScript V1
+(zero releases, Experimental)._
 
 ---
 
 ## Where we are in one sentence
 
 The v3 reputation covenant is live on TN10 (keyless PoC, rep=110 head); the v4
-detached-verdict gate (`checkSigFromStack`) is written, compiles against current
-silverscript master, and is PROVEN to enforce in the local txscript VM — valid verdict
-accepts, five tamper variants reject. Next is putting v4 on TN10 for real.
+detached-verdict covenant (`checkSigFromStack`) is now ALSO live on TN10: genesis
+established at covenant_id 4af6f785..., head 9999.998 tKAS parked at
+kaspatest:pqm9qv...lm3wux3. Next: first authenticated transition (the spend after
+genesis is what the CSFS gate actually guards).
 
 ---
 
@@ -73,12 +75,15 @@ carries that id. Consequence for deployment:
 | rusty-kaspa clone | `C:\kaspa-dev\rusty-kaspa` (tag **v2.0.1**, detached HEAD — fine) |
 | covenants | `C:\oracle-protocol\covenants\` (`oracle_rep_v{3,4}.sil`, `oracle_ctor_v{3,4}.json`) |
 | .rs source of truth | `C:\oracle-protocol\rust-examples\` (every new/changed harness lands here first) |
-| harness build/run dir | `C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples\` (run via `cargo run --example <name>`) |
+| local-VM harness dir | `C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples\` (pure txscript verifies, e.g. oracle_v4_verify) |
+| RPC harness dir | `C:\kaspa-dev\rusty-kaspa\rothschild\examples\` (node-connected work, e.g. oracle_v4_genesis; rothschild has grpc/tokio/notify deps) |
 
-**Harness home correction:** harnesses run as **txscript examples**, NOT rothschild/bin (the
-old "bins build dir" note was wrong — this fresh v2.0.1 clone has no rothschild\src\bin).
-txscript already has secp256k1, blake2b_simd, faster-hex, rand as regular deps, so an example
-compiles with zero Cargo.toml edits.
+**Harness home split (proven this session):** two paths depending on harness type.
+Pure-local (no networking) harnesses go in `crypto\txscript\examples\`: txscript has
+secp256k1, blake2b_simd, faster-hex, rand as regular deps (used by oracle_v4_verify).
+RPC-driven harnesses go in `rothschild\examples\`: rothschild has kaspa_grpc_client,
+kaspa_notify, kaspa_rpc_core, tokio as regular deps (used by oracle_v4_genesis and every
+v3 harness). The earlier "txscript examples" blanket was wrong for RPC.
 
 ## Node access
 
@@ -125,10 +130,13 @@ compiles with zero Cargo.toml edits.
 1-6. **DONE** (recompile sanity, v4 contract, byte-order verify, ctor, oracle key, local
    accept/reject proof).
 
-7. [ ] **Fresh v4 genesis on TN10.** New address from v4 script. Two-step establish (signed
-   tx + `populate_genesis_covenants`), NO verdict (continuation-only — see critical fact).
-   Requires node access (tunnel or local). Build `oracle_v4_genesis.rs` from the v3 genesis
-   harness pattern.
+7. [X] **DONE.** v4 genesis established on TN10.
+   - tx: c83878898cb00e529def7ca03617f8328eebe74a4ff559f670eb776de1760c2d
+   - covenant_id: 4af6f785646683734025f72684f14e184a7580b6d86e2ea881306c79db8a41eb
+   - addr: kaspatest:pqm9qv8z40llxcvhuqkhja5rs0knju9dg40tfak76525eg8hlgykyflm3wux3
+   - head UTXO: c83878...c2d:0, value 999999800000 sompi
+   - harness: `oracle_v4_genesis.rs` (canonical in rust-examples\; runs from
+     rothschild\examples\, see toolchain layout).
 8. [ ] **First authenticated transition on TN10** — the spend after genesis, carrying a real
    signed verdict. This is the live "Everyone is an Oracle" loop. Verify the spender's
    sigScript push order matches (delta, oracle_pk, oracle_sig, redeem).
@@ -172,7 +180,9 @@ quorum (checkMultiSig still ABSENT from the compiler — don't plan on it yet).
   or PowerShell `Select-String`. Bit us repeatedly this session.
 - **VS Code terminal reverses multi-line pastes** — single-line commands only.
 - Compile: `cd /d C:\kaspa-dev\silverscript && cargo run --bin silverc -- C:\oracle-protocol\covenants\<file>.sil --ctor C:\oracle-protocol\covenants\<ctor>.json -c`
-- Harness run: `cd /d C:\kaspa-dev\rusty-kaspa\crypto\txscript && cargo run --release --example <name>`
+- Local-VM harness run: `cd /d C:\kaspa-dev\rusty-kaspa\crypto\txscript && cargo run --release --example <name>`
+- RPC harness run: `cd /d C:\kaspa-dev\rusty-kaspa\rothschild && cargo run --release --example <name>`
+- **v2.0.1 TransactionInput API drift:** `mass: TxInputMass::...` is now `compute_commit: ComputeCommit::...`. For Toccata inputs use `ComputeCommit::ComputeBudget(10.into())`. Any harness cloned from a pre-v2.0.1 template fails to compile until swapped. Source pattern: rothschild main.rs line 704.
 
 ## CLOSED items
 
@@ -194,6 +204,8 @@ TN10 at dev-team direction. PsychoNode hosted the TN10 node through the v3 proof
 ## SESSION SIGNATURES
 
 _Append-only. Newest first._
+
+---sig #015 | 2026-07-29 | scope: v4 genesis established on TN10 (tx c83878..., covenant_id 4af6f785..., addr kaspatest:pqm9qv...lm3wux3, 9999.998 tKAS parked at head); harness-home drift corrected (RPC harnesses live in rothschild\examples\ not txscript\examples\; earlier note was overgeneralized from local-VM case); v2.0.1 API drift on TransactionInput (mass -> compute_commit) surfaced via compile errors and fixed via rothschild main.rs:704 pattern; status doc updated | head: af6414c
 
 ---sig #014 | 2026-07-29 | scope: v3 recompile fix (binding=cov→auth, bytecode identical,
 rebaselined); v4 contract written against real checkSigFromStack + compiles; byte-order &
