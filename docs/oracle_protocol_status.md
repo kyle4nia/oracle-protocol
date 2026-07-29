@@ -1,213 +1,193 @@
 # Oracle Protocol — Status
 
 _**Read `operating_baseline.md` alongside this doc.** This says WHERE the project is;
-the baseline says HOW we work. Together they let a fresh chat resume cleanly._
+the baseline says HOW we work._
 
-_Last updated: 2026-07-13. **CSFS UNBLOCKED** — `checkSigFromStack` landed in the compiler
-(silverscript #132, 2026-06-16), source-verified as a real lowering. v4 (detached-verdict)
-is ACTIVE, buildable on TN10 today. Toolchain rehomed: `C:\kaspa-dev\` (silverscript master
-+ rusty-kaspa v2.0.1). Node access consolidated on `127.0.0.1:16210` (SSH tunnel to VPS
-TN10, or local sync). Mainnet still gated on SilverScript V1 (zero releases)._
+_Last updated: 2026-07-29. **v4 CSFS GATE PROVEN** in local VM (6-case accept/reject,
+all correct). Steps 1-6 of the v4 plan are DONE. Resume at step 7: fresh v4 genesis on
+TN10. Mainnet still gated on SilverScript V1 (zero releases, Experimental)._
 
 ---
 
 ## Where we are in one sentence
 
-The v3 reputation-UTXO covenant is LIVE ON TN10 (rep=100 -> 105 -> 110, head UTXO valid and
-spendable, no trusted coordinator); the off-chain verdict signer is a tested standalone crate
-with green CI; and the on-chain CSFS gate — the last missing half of v4 — became buildable on
-2026-06-16 when the compiler shipped a real `checkSigFromStack`.
+The v3 reputation covenant is live on TN10 (keyless PoC, rep=110 head); the v4
+detached-verdict gate (`checkSigFromStack`) is written, compiles against current
+silverscript master, and is PROVEN to enforce in the local txscript VM — valid verdict
+accepts, five tamper variants reject. Next is putting v4 on TN10 for real.
 
 ---
 
-## CSFS: UNBLOCKED (the headline)
+## v4 status: PROVEN, ready to deploy
 
-- **silverscript commit #132 (2026-06-16), "Expose typed CheckSigFromStack builtins."**
-  checkDataSig's no-op stub is gone; the builtin is real.
-- **Signature (from static_check.rs):**
-  `checkSigFromStack(signature: datasig, digest: byte[32], publicKey: pubkey) -> bool`
-  (+ `checkSigFromStackECDSA` variant with byte[33] pubkey — not needed).
-- **SOURCE-VERIFIED 2026-07-13:** `compile_checksigfromstack_call` pushes signature, digest,
-  publicKey and emits OpCheckSigFromStack (0xd7), net stack -2. No drop-and-true. Real.
-- **Syntax reference:** `silverscript-lang/tests/examples/simple_checksigfromstack.sil`
-  (renamed from simple_checkdatasig.sil).
-- Matches the pinned engine spec exactly: plain BIP340 schnorr, 32B x-only pubkey, 64B sig,
-  msg_hash must be exactly 32 bytes, no domain separation. The off-chain signer crate slots
-  in unchanged.
-- The bytecode-splice workaround is DEAD — never needed. Delete from planning.
+- **Contract:** `oracle_rep_v4.sil` + `oracle_ctor_v4.json` (canonical in `covenants\`).
+  Compiles clean on current master. 162-byte script, state_layout len 18 (rep 8B + nonce
+  8B), `without_selector: true`, entrypoint `__covenant_entrypoint_auth_update(delta:int,
+  oracle_pk:pubkey, oracle_sig:datasig)`.
+- **Gate proof:** `rust-examples\oracle_v4_verify.rs` (runs as a txscript example —
+  `cargo run --release --example oracle_v4_verify` from `crypto\txscript`). Six cases:
+  valid ACCEPTS; tampered delta / tampered nonce / tampered covenant_id / wrong key /
+  missing sig all REJECT. The five rejections are the real proof (guards against a
+  stub-gate false pass). Re-run any time the compiler or engine version changes.
+- **Verdict layout (FINAL, matches signer byte-for-byte):**
+  `verdict_bytes = delta(8B LE) || nonce(8B LE) || covenant_id(32B)` = 48 bytes;
+  `msg_hash = blake2b_256(verdict_bytes)`; `signature = schnorr_sign(msg_hash)`, x-only key.
+- **Spender sigScript push order:** delta(i64), oracle_pubkey(32), oracle_sig(64), then the
+  redeem-script reveal (P2SH). ABI arg order is delta, oracle_pk, oracle_sig.
+- **CSFS engine check (source-verified):** OpCheckSigFromStack (0xd7) pops
+  [signature, msg_hash, pubkey]; XOnlyPublicKey::from_slice(32B), Signature::from_slice(64B),
+  Message::from_digest(32B msg_hash), plain BIP340 schnorr. Off-chain signer crate matches
+  this path exactly.
 
-## Compiler deltas since the 68-byte v3 baseline (recompile WILL differ — expected)
+## CRITICAL v4 design fact — continuation-only binding
 
-The live v3 script was compiled months of commits ago. Master has since landed:
-- **#123 cov decl changes** (entrypoint prefix rename, singleton `to` bounds validation).
-- **#131 / new validate_output_state.rs** — validateOutputStateWithTemplate machinery.
-- **#143 template hash hardening (BREAKING, 2026-07-09)** — canonical length-bound template
-  hash; adds `templateHash(prefix, suffix)` builtin for reconstructing a template hash from
-  revealed parts inside a higher-level commitment. This is the Capsule/virtual-extension
-  OPENING primitive, in the compiler, now.
-- **#136** — compiler workspace now depends on rusty-kaspa **v2.0.1** (matches our nodes).
-- README now recommends **TN10** for bytecode artifacts (TN12-only note removed, #141).
+`OpInputCovenantId` returns **ZERO_HASH on a genesis-establishing input** (the spent UTXO
+has covenant_id=None until the covenant exists). So a verdict signed against the real
+covenant_id can only be verified on a **continuation** spend, where the spent input already
+carries that id. Consequence for deployment:
+- **Genesis (step 7)** establishes the covenant with `oracle_pkh` baked into the ctor. It
+  does NOT itself carry a signed verdict — it's the plain two-step establishment
+  (signed tx + `populate_genesis_covenants`), same as v3's genesis lesson.
+- **First authenticated transition (step 8)** is the spend AFTER genesis — that's the first
+  hop the CSFS gate actually guards. The local proof models exactly this continuation case
+  (spent UTXO carries covenant_id `5a5a…`).
 
-Consequences:
-- `covenant-check.bat` vs the old baseline will say DIFFERENT on first run — expected, not
-  an alarm. Rebaseline (`covenant-check.bat rebaseline`) after the first clean v3 recompile.
-- The LIVE rep=110 chain is unaffected (its script is already on-chain). New genesis work
-  (v4) is built entirely on current-master output.
-- **Entrypoint length-validation fix: status UNKNOWN** — not visible in recent commit log.
-  Re-verify before ANY mainnet build. The rule stands: **mainnet only against SilverScript
-  V1** (still zero releases, still Experimental).
+## Oracle key (generated 2026-07-29)
+
+- Fresh TN10 oracle keypair generated via `oracle_sign_verdict` (no `--oracle-key` => gen).
+- `oracle_pkh` (blake2b of x-only pubkey) is baked into `oracle_ctor_v4.json`. pkh and pubkey
+  are public; safe in tracked files.
+- **Secret** lives ONLY in `C:\oracle-protocol\tn10.oracle-key.txt`, gitignored via
+  `*.oracle-key.txt`. Never promote to a tracked file; never reuse on mainnet.
+- Harness clone copy gets the secret injected at build time from that file; the CANONICAL
+  `rust-examples\oracle_v4_verify.rs` keeps the placeholder `REPLACE_WITH_ORACLE_SECRET_HEX`.
 
 ---
 
-## Toolchain layout (rehomed 2026-07-13 — tn12 paths retired)
+## Toolchain layout
 
 | Item | Location |
 |------|----------|
 | Source of truth | `C:\oracle-protocol` (git, github.com/kyle4nia/oracle-protocol) |
-| silverscript | `C:\kaspa-dev\silverscript` (master, post-#143) |
+| silverscript | `C:\kaspa-dev\silverscript` (master; depends on rusty-kaspa **v2.0.1**) |
 | rusty-kaspa clone | `C:\kaspa-dev\rusty-kaspa` (tag **v2.0.1**, detached HEAD — fine) |
-| ctor JSONs | `C:\oracle-protocol\covenants\oracle_ctor*.json` (rescued from compiler clone) |
-| examples build dir | `C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples` |
-| bins build dir | `C:\kaspa-dev\rusty-kaspa\rothschild\src\bin` |
-| RETIRED | `C:\_RETIRED_kaspa-tn12\rusty-kaspa` (TN12-era; holds bitphoque_cli wiring; delete only after BitPhoque CLI migration) |
+| covenants | `C:\oracle-protocol\covenants\` (`oracle_rep_v{3,4}.sil`, `oracle_ctor_v{3,4}.json`) |
+| .rs source of truth | `C:\oracle-protocol\rust-examples\` (every new/changed harness lands here first) |
+| harness build/run dir | `C:\kaspa-dev\rusty-kaspa\crypto\txscript\examples\` (run via `cargo run --example <name>`) |
 
-Ctor triage note: FOUR ctor JSONs were rescued (`oracle_ctor.json`, `_v3`, `_105`, `_v4`).
-`oracle_ctor.json` is likely the ancient TN12-era original; `oracle_ctor_v4.json` predates
-the CSFS landing — BOTH need triage against the real v4 contract before use. Commit all four
-at next checkpoint regardless (they were untracked project artifacts living in a disposable
-clone — source-of-truth violation, now corrected).
+**Harness home correction:** harnesses run as **txscript examples**, NOT rothschild/bin (the
+old "bins build dir" note was wrong — this fresh v2.0.1 clone has no rothschild\src\bin).
+txscript already has secp256k1, blake2b_simd, faster-hex, rand as regular deps, so an example
+compiles with zero Cargo.toml edits.
 
-Harnesses are NOT yet copied into the v2.0.1 clone. Expect API churn between tn10-toc3 and
-v2.0.1 — budget for compile fixes on first build. Copy per COMMANDS.md recipe.
+## Node access
 
-## Node access (consolidated 2026-07-13)
-
-**Every `.rs` const NODE = `127.0.0.1:16210`** — same rule as BitPhoque. Served by either:
-- **SSH tunnel to VPS TN10 node (primary):**
-  `ssh -N -L 16210:127.0.0.1:16210 root@89.167.32.239`
-  (VPS TN10 kaspad confirmed listening gRPC on loopback 16210, 2026-07-13. Keep the tunnel
-  terminal open while running harnesses.)
-- **Local Big Daddy TN10 node (fallback):** not currently running; would sync in a few hours.
-  Same address when up — tunnel and local node are interchangeable, zero code difference.
-- **PsychoNode: RETIRED.** `192.168.0.206` references are dead.
-
-VPS also runs a synced mainnet node (gRPC loopback 16110) — future mainnet ops can use the
-same tunnel pattern with a different port mapping.
+**Every `.rs` const NODE = `127.0.0.1:16210`.** Served by either:
+- **SSH tunnel to VPS TN10 (primary):** `ssh -N -L 16210:127.0.0.1:16210 root@89.167.32.239`
+  (keep the tunnel terminal open while running harnesses).
+- **Local Big Daddy TN10 node (fallback):** same address when up; interchangeable, zero code
+  difference.
+- VPS also runs a synced mainnet node (gRPC loopback 16110) for future mainnet ops via the
+  same tunnel pattern, different port.
 
 ---
 
 ## What is DONE and proven
 
-- **v3 covenant live and repeatable on TN10.** Three confirmed txs:
-  genesis `1a5a825d...abed`, 100->105 `d59550a2...cb21`, 105->110 `fff85053...e00f`.
-  Enforced at script layer, no coordinator.
-- **Current head (rep=110):** `fff850538fdf762e959c881531b299b8a3a934260d6d9acbe7ef2bdf642de00f:0`,
-  value 99999400000 sompi, covenant_id `ba37ac5a713c4f2e7429ba17d4d338d117e1130556e42201181c22552e3102e2`,
+- **v3 covenant live on TN10** (keyless PoC). Head rep=110:
+  `fff850538fdf762e959c881531b299b8a3a934260d6d9acbe7ef2bdf642de00f:0`, value 99999400000
+  sompi, covenant_id `ba37ac5a713c4f2e7429ba17d4d338d117e1130556e42201181c22552e3102e2`,
   addr `kaspatest:pp24h2m349g8g3u8trt9es64y0pdjqu2q60vl9e9rh50lk9e0rzhwhlup7xms`.
-  Valid covenant UTXO, ready for the next transition. Stays live as the keyless PoC.
+  Stays live; v4 gets a fresh genesis, v3 chain untouched.
+- **v3 recompiles clean on current master** after a one-word fix: `binding = cov` →
+  `binding = auth` in `oracle_rep_v3.sil`. Recompiled bytecode is identical to the on-chain
+  v3 script; `covenant-check.bat` rebaselined. (The compiler tightened binding=cov to require
+  `State[]` params; auth was always the correct binding — the ABI already said auth_update.)
+- **v4 contract written + compiles + PROVEN** (see v4 section above).
+- **Off-chain verdict signer:** standalone crate `signer/` (`oracle-signer`), 8 tests
+  (5 rejection), green CI, no rusty-kaspa dependency.
 - **Generalized spender** (`oracle_submit_spend.rs`): scans for live head, reads rep, applies
-  delta — drives every hop with no edits.
-- **Off-chain verdict signer:** standalone crate `signer/` (`oracle-signer`), 8 cargo tests
-  (5 rejection), green GitHub Actions CI on every push. No rusty-kaspa dependency.
-- **Verdict message layout (FINAL):**
-  `verdict_bytes = delta(8B LE) || nonce(8B LE) || covenant_id(32B)` = 48 bytes;
-  `msg_hash = blake2b_256(verdict_bytes)`; `signature = schnorr_sign(msg_hash)`, x-only key.
-- **Spender sigScript push order (confirmed):** signature(64), msg_hash(32), oracle_pubkey(32).
-- **THE GENESIS LESSON stands:** a covenant UTXO cannot be created by paying its P2SH address
-  directly (covenant_id:None, unspendable). Establish via a signed tx +
-  `populate_genesis_covenants`. Two-step: establish, then transition.
+  delta — drives every hop with no edits. (Written for v3; will need v4 sigScript push order
+  for authenticated hops — verify before step 8.)
 
 ## v3 ground-truth artifacts
 
-- 68-byte redeem script (rep=100; rep=105 identical except byte index 1) — recorded in
-  history doc / QUICKREF. NOTE: current-master recompile produces DIFFERENT bytecode; the
-  68-byte form is the on-chain historical artifact, not the build target for new work.
-- ABI: entrypoint `__covenant_entrypoint_auth_update`, single arg `delta:int`,
+- 68-byte redeem script (rep=100; rep=105 differs only at byte index 1) — the on-chain
+  historical artifact, NOT the build target for new work (current master differs, expected).
+- ABI: entrypoint `__covenant_entrypoint_auth_update`, arg `delta:int`,
   `without_selector: true`, `state_layout {start:0, len:9}`.
-- v3 delta is UNAUTHENTICATED (anyone can move rep). That is v4's whole purpose.
+- v3 delta is UNAUTHENTICATED (anyone moves rep) — v4's whole purpose.
 
 ---
 
-## ACTIVE PLAN — v4 detached-verdict gate (resume here)
+## ACTIVE PLAN — resume at step 7
 
-The "productive work while waiting" is complete; the wait is over. Sequence:
+1-6. **DONE** (recompile sanity, v4 contract, byte-order verify, ctor, oracle key, local
+   accept/reject proof).
 
-1. [ ] **Recompile sanity:** compile v3 against current master; expect covenant-check DIFFERENT;
-   rebaseline. Proves the toolchain end-to-end before touching v4.
-2. [ ] **Rewrite `oracle_rep_v4.sil` gate** against the real builtin:
-   `require(checkSigFromStack(oracle_sig, msg_hash, oracle_pk))` where
-   `msg_hash = blake2b(byte[8](delta) + nonceState + covenantIdBytes)` — byte-concat
-   semantics and `digest: byte[32]` typing now checkable against the compiler, not guessed.
-   Keep: `require(blake2b(oracle_pk) == oracle_pkh)` identity check; nonce increment;
-   16-byte state (rep 8B + nonce 8B); v3 covenant plumbing (binding=auth).
-3. [ ] **covenant_id binding:** read via OpInputCovenantId (REAL, verified in compile.rs).
-   MUST VERIFY byte order matches what the signer signs (signer takes hex as-is).
-4. [ ] **Triage rescued ctors;** write the real v4 ctor (init_rep, init_nonce, oracle_pkh).
-5. [ ] **Fresh oracle keypair** (do NOT reuse the demo key). blake2b(pubkey) -> oracle_pkh.
-6. [ ] **Local VM accept AND reject tests** (harness on v2.0.1 clone): valid verdict ACCEPTS;
-   tampered delta / nonce / covenant_id / wrong key / missing sig ALL REJECT. The rejection
-   tests are the proof — non-negotiable given checkDataSig's stub history.
-7. [ ] **Fresh v4 genesis on TN10** (new address, new covenant; v3 chain stays as PoC).
-8. [ ] **On-chain verdict transition** — the full "Everyone is an Oracle" loop, live.
+7. [ ] **Fresh v4 genesis on TN10.** New address from v4 script. Two-step establish (signed
+   tx + `populate_genesis_covenants`), NO verdict (continuation-only — see critical fact).
+   Requires node access (tunnel or local). Build `oracle_v4_genesis.rs` from the v3 genesis
+   harness pattern.
+8. [ ] **First authenticated transition on TN10** — the spend after genesis, carrying a real
+   signed verdict. This is the live "Everyone is an Oracle" loop. Verify the spender's
+   sigScript push order matches (delta, oracle_pk, oracle_sig, redeem).
 
-Then (unchanged): constitutional constraints (caps/floors/DAA rate limits); multi-oracle /
-quorum (checkMultiSig still ABSENT from the compiler — do not plan on it yet).
+Then toward a simple formal release (v0.1.0 tag, TN10, single oracle):
+9. [ ] Repo cleanup: retire `oracle_submit_read.rs` (stale) and dead ctor `oracle_ctor.json`;
+   sweep QUICKREF/COMMANDS for tn10-toc3-era facts; note the blake2b_simd dep added to
+   rothschild Cargo.toml was UNNEEDED (harness moved to txscript examples) — revert or ignore.
+10. [ ] README a stranger can follow: what the protocol does, how to run the signer, how to
+    submit a verdict, what on-chain state means.
+11. [ ] Tag the release; changelog in the tag message.
 
-## Capsule / composability lens (design input for v4+, from KCC20/forum analysis)
+Later (unchanged): constitutional constraints (caps/floors/DAA rate limits); multi-oracle /
+quorum (checkMultiSig still ABSENT from the compiler — don't plan on it yet).
 
-- Design v4+ state layouts as **Capsule-compatible**: standard fields + room for a virtual-
-  extension digest, so future consumer covenants can compile against the oracle's interface
-  without knowing its internals (Open ICC). The `templateHash(prefix, suffix)` builtin (#143)
-  is the in-compiler opening primitive for exactly this.
-- **txid-commitment pattern** (forum, 143672, 2026-07-12): a spender can PROVE a prior tx's
-  payload/state to a script by supplying it plus a digest of the rest, verified against
-  `input.outpoint.txid == hash(...)`. Consensus can't read history, but it can verify a
-  supplied claim about history. Not needed for v4; relevant to the CONSUMER layer (e.g.
-  proving "oracle rep was X at DAA Y" without trusting an indexer). Filed, parked.
-- **Covenant state > tx payload** as the state holder — publicly endorsed by IzioDev
-  (2026-07-13); v3/v4 already comply.
-- **getUtxosByCovenantId RPC:** oracle's head-scan (`oracle_submit_spend.rs`) is a second
-  consumer alongside BitPhoque's parcel registry. Cite BOTH use cases in the filing
-  (draft lives in BitPhoque open items).
+## Capsule / composability lens (parked design input)
+
+- Design v4+ state layouts Capsule-compatible (standard fields + room for a virtual-extension
+  digest) so consumer covenants compile against the oracle interface without its internals.
+  `templateHash(prefix, suffix)` builtin (#143) is the in-compiler opening primitive.
+- **txid-commitment pattern** (forum 143672): a spender can prove a prior tx's state to a
+  script via a digest verified against `input.outpoint.txid`. Relevant to the CONSUMER layer
+  (proving "oracle rep was X at DAA Y" without an indexer). Parked.
+- **getUtxosByCovenantId RPC filing:** oracle head-scan + BitPhoque parcel registry are two
+  consumers — cite both (draft in BitPhoque open items).
 
 ---
 
-## CLOSED — mainnet Toccata activation
+## Hard-won gotchas (carried forward)
 
-Toccata activated on mainnet 2026-06-30. VPS mainnet node (kaspad-mainnet.service, v2.x)
-confirmed synced at DAG tip 2026-07-11. The karrrlskaspanode fork-risk task is overtaken by
-events; no action.
-
-## Tooling (in C:\oracle-protocol\docs — paths swept 2026-07-13)
-
-- check-updates.bat — pre-session upstream check (now points at kaspa-dev paths).
-- covenant-check.bat — recompile + diff vs baseline; `rebaseline` arg. First run post-sweep
-  WILL report DIFFERENT (see compiler deltas above).
-- deploy-and-run.bat <example> — copy harness to v2.0.1 clone + cargo run.
-- QUICKREF.md / COMMANDS.md — paths updated; content still references some tn10-toc3-era
-  facts (fee floors etc.) — verify on first v2.0.1 runs.
-- oracle_submit_read.rs — STILL STALE (old TN12 probe, dead hardcoded values). Generalize
-  like the spender or retire. Do not trust output.
-
-## Hard-won gotchas (carried forward, paths updated)
-
-- Source of truth is `C:\oracle-protocol`. Clones are disposable. ALWAYS-SAVE RULE: every
-  new `.rs` goes to `C:\oracle-protocol\rust-examples\` the moment it's created.
-- KEEP THE TWO `.sil` COPIES IN SYNC (oracle-protocol copy is the one that compiles; the
-  silverscript-lang/tests copy caused the stale-file detour).
-- `silverc` ctor args are typed Expr JSON: `byte[8]` = array of eight
-  `{"kind":"byte","data":N}` entries, little-endian. NOT `{"kind":"int",...}`.
-- Kaspa script ints are little-endian.
-- VS Code terminal reverses multi-line pastes — single-line commands only.
+- **Source of truth is `C:\oracle-protocol`.** Clones are disposable. Every new `.rs` →
+  `rust-examples\` the moment it's created.
+- **Keep the two `.sil` copies in sync** (covenants\ is canonical; the
+  silverscript-lang/tests copy caused a stale-file detour once).
+- **`byte[8](int)` lowers to OpNum2Bin → `serialize_i64` = sign-magnitude little-endian.**
+  Positive small values match `i64::to_le_bytes()`; negatives differ (sign bit in top byte).
+  Matters if delta ever goes negative — the signer uses to_le_bytes, so re-verify parity then.
+- **`silverc` ctor args are typed Expr JSON:** `byte[8]` = eight `{"kind":"byte","data":N}`
+  entries, little-endian. NOT `{"kind":"int",...}`. Kaspa script ints are little-endian.
+- **cmd `findstr` `\|` alternation is unreliable** — use single-term searches or `/r` regex,
+  or PowerShell `Select-String`. Bit us repeatedly this session.
+- **VS Code terminal reverses multi-line pastes** — single-line commands only.
 - Compile: `cd /d C:\kaspa-dev\silverscript && cargo run --bin silverc -- C:\oracle-protocol\covenants\<file>.sil --ctor C:\oracle-protocol\covenants\<ctor>.json -c`
-- Harness run: `cd /d C:\kaspa-dev\rusty-kaspa && cargo run --release -p rothschild --bin <name>` (`-- --go` to broadcast; dry-run first).
+- Harness run: `cd /d C:\kaspa-dev\rusty-kaspa\crypto\txscript && cargo run --release --example <name>`
+
+## CLOSED items
+
+- **Mainnet Toccata activation** — activated 2026-06-30; VPS mainnet node synced. karrrlskaspanode
+  fork-risk task overtaken by events. No action.
+- **checkDataSig no-op stub** — dead path. Replaced upstream by checkSigFromStack (#132),
+  now proven real. Bytecode-splice workaround DELETED from planning.
+- **ctor triage** — `oracle_ctor.json` (TN12-era int-format) is DEAD; `_105`/`_v3` are v3
+  historical; `_v4` is the live 3-param ctor.
 
 ## Historical note (compressed)
 
-Project began on TN12 (dead: old 53-byte split-based contract, old addresses, old wallet
-balance — never reuse). Migrated to TN10 at dev-team direction. PsychoNode hosted the TN10
-node through the v3 proof; retired 2026-07. checkDataSig was confirmed a no-op stub, replaced
-upstream by checkSigFromStack (#132). Full ledger in the history doc.
+Began on TN12 (dead: 53-byte split contract, old addresses/wallet — never reuse). Migrated to
+TN10 at dev-team direction. PsychoNode hosted the TN10 node through the v3 proof; retired
+2026-07. Full ledger in the history doc.
 
 ---
 
@@ -215,8 +195,13 @@ upstream by checkSigFromStack (#132). Full ledger in the history doc.
 
 _Append-only. Newest first._
 
----sig (pending) | 2026-07-13 | scope: CSFS unblock confirmed (source-verified real lowering),
-tn12 path sweep (5 tooling/doc files), toolchain rehomed to C:\kaspa-dev (silverscript master
-pull 2c46231->956868e; fresh rusty-kaspa v2.0.1 clone), ctor JSONs rescued to covenants\,
-node access consolidated (VPS tunnel plan, PsychoNode retired), Toccata task closed, status
-doc rewritten | head: (commit at checkpoint)
+---sig #014 | 2026-07-29 | scope: v3 recompile fix (binding=cov→auth, bytecode identical,
+rebaselined); v4 contract written against real checkSigFromStack + compiles; byte-order &
+CSFS engine path source-verified; v4 ctor built with baked oracle_pkh; fresh TN10 oracle key
+generated (secret gitignored); v4 CSFS gate PROVEN in local VM (oracle_v4_verify.rs, 6-case
+accept/reject all correct); continuation-only covid binding discovered & documented; harness
+home corrected to txscript examples; status doc condensed | head: f835147
+
+---sig #013 | 2026-07-13 | scope: CSFS unblock confirmed (source-verified real lowering),
+tn12 path sweep, toolchain rehomed to C:\kaspa-dev, ctor JSONs rescued, node access
+consolidated, Toccata task closed | head: (pre-#014 baseline)
