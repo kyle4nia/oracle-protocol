@@ -220,7 +220,7 @@ eba6dee... rep 100->105; on-chain replay REJECT 2fe13331... stale nonce, engine 
 accept 3fd9e2d... rep 105->110 via generalized spender); oracle_v4_spend.rs generalized
 (trajectory scanner, one batched RPC, live-state verdicts, 8-byte LE state writes, uniform-
 delta assumption flagged); fee floor gotcha (mass 1868 -> min 186800 sompi); key-file parse
-fixed (labeled dump, trailing comment); v3 spender marked superseded | head: (post-#016)
+fixed (labeled dump, trailing comment); v3 spender marked superseded | head: bd4da49
 
 ---sig #015 | 2026-07-29 | scope: v4 genesis established on TN10 (tx c83878..., covenant_id 4af6f785..., addr kaspatest:pqm9qv...lm3wux3, 9999.998 tKAS parked at head); harness-home drift corrected (RPC harnesses live in rothschild\examples\ not txscript\examples\; earlier note was overgeneralized from local-VM case); v2.0.1 API drift on TransactionInput (mass -> compute_commit) surfaced via compile errors and fixed via rothschild main.rs:704 pattern; status doc updated | head: 25ef286
 
