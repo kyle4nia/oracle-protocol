@@ -211,6 +211,12 @@ TN10 at dev-team direction. PsychoNode hosted the TN10 node through the v3 proof
 
 ---
 
+## Session drift (pending next sig)
+
+- 2026-07-29: Stray `derive_pubkey.js` (kaspa-wasm BitPhoque owner-pubkey deriver) surfaced at `C:\oracle-protocol\` root during step 9 inventory. Untracked; reads `F:\Tocatta_Projects\bitphoque\bitphoque_owner.key`. Cross-project pollution. Rehomed to `C:\bitphoque\derive_pubkey.js` via `move /Y`; sole copy on `C:`. Disposition (track / gitignore / delete) deferred to next BitPhoque session.
+
+---
+
 ## SESSION SIGNATURES
 
 _Append-only. Newest first._
