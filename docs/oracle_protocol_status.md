@@ -226,6 +226,8 @@ TN10 at dev-team direction. PsychoNode hosted the TN10 node through the v3 proof
 
 _Append-only. Newest first._
 
+---sig #017 | 2026-07-30 | scope: v0.1.0 RELEASED and pushed (annotated tag on b323904, public). Steps 9-11 done. Step 9: 25 stale files retired toward v4-only surface (v3 tooling, ctor-args mirror dir, COMMANDS/QUICKREF, covenant-check.bat + 2 txt baselines, deploy-and-run.bat); policy v3=frozen museum piece; check-updates.bat kept + patched to v2.0.1/v4; stray 0-byte 'cd' artifact amended out of commit 553dc6d. Step 10: README rewritten for stranger + Kyle's voice (why-it-exists, web-app/self-erecting roadmap), d5152f3. Status doc freshened to pure ASCII (em dashes/arrows/ellipsis stripped), b323904. Drift: LF-not-CRLF and UTF-8-explicit-read lessons (CP-1252 mojibake caused a false-negative char count); derive_pubkey.js cross-project pollution rehomed to C:\bitphoque. Open: no history doc in tree despite status ref | head: b323904
+
 ---sig #016 | 2026-07-29 | scope: step 8 DONE, authenticated loop live on TN10 (accept
 eba6dee... rep 100->105; on-chain replay REJECT 2fe13331... stale nonce, engine false-stack;
 accept 3fd9e2d... rep 105->110 via generalized spender); oracle_v4_spend.rs generalized
