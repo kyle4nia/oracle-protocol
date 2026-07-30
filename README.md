@@ -1,128 +1,54 @@
 # Oracle Protocol
 
-[![CI](https://github.com/kyle4nia/oracle-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/kyle4nia/oracle-protocol/actions/workflows/ci.yml)
+A reputation system that runs on the Kaspa blockchain, where reputation is the asset and everyone is an oracle.
 
-Consensus-enforced reputation on Kaspa. Reputation lives as state inside covenant-locked
-UTXOs and is updated at the script layer. Each transition produces a new UTXO carrying the
-covenant forward, spendable only under the same rules.
+## Why this exists
 
-The target authorization model is the portable verdict: an oracle signs an authorized change
-(`delta || nonce || covenant_id`), and anyone can carry that signature on-chain. The signer
-must not need to be the submitter.
+Human coordination runs on trust, and trust runs on reputation. For most of history that worked because reputation was local and hard to fake. That is no longer true. The information systems we rely on to know who to trust are controlled by a small number of actors, and control over those systems is control over what people can see, say, and believe. Our evolutionary wiring, built for small groups and face to face reputation, gets exploited by whoever owns the pipes.
 
-## Self-erecting
+The way out is to decouple. Put the reputation ledger somewhere no single party owns and no single party can rewrite. A decentralized information system does not fix human nature, but it takes the lever away from the people currently pulling it. Liberty and justice for all is not a slogan you can enforce from the top down. It is a property that emerges when no one holds the master switch.
 
-The design constraint on every component: the system adjusts toward its goals without a
-trusted coordinator. A reputation system with a privileged operator hasn't removed the trust
-problem, it has relocated it.
+Oracle Protocol is one piece of that. It makes reputation a thing that lives on chain, that anyone can read, that no one can silently edit, and that moves according to rules everyone can inspect.
 
-Concretely:
+## What it does
 
-- Transition rules are enforced by the covenant, not applied by an operator. The rules travel
-  with the UTXO; the deployer holds no ongoing role.
-- Authorization and submission are separate. An oracle signs a verdict; any party can carry
-  it on-chain. No relayer, no sequencer, no allowlist.
-- The live chain proves it: the current rep head is a plain UTXO on TN10, spendable by anyone
-  who satisfies the covenant. If every machine that built this project went dark, the state
-  and its rules would remain fully in force.
-- Where the implementation still leans on a coordinator-shaped crutch, that is named, not
-  hidden: head discovery currently scans a node's address index, and the proposed
-  `getUtxosByCovenantId` RPC exists to remove it. Testnet shortcuts are recorded alongside
-  what the self-erecting version replaces them with.
+Reputation lives as a UTXO on Kaspa. Each reputation record is a coin held by a covenant, a small on chain program that controls how the record can change. The current reputation value is baked into the coin. To change it, you spend the coin and create a new one with the updated value, and the covenant only allows the spend if the rules are followed.
 
-## Update model
+The rule that matters: reputation only moves when an oracle signs off on it. An oracle is anyone whose verdicts the system is configured to trust. In this release there is a single oracle. The design goal is that eventually everyone is an oracle and verdicts are aggregated, but that requires primitives Kaspa does not expose yet, so the honest current state is one signer.
 
-Reputation converges; it never jumps. Each transition is Bayesian in shape: the current
-state is the prior, a signed verdict is the evidence, the new head UTXO is the posterior.
-Because every head is the product of the full transition chain, no update can discard
-history — it can only condition on it.
+The prime directive underneath all of it: you can do what you want as long as it does not prevent others from doing what they want. That is the floor the whole system is built to protect, not a rule bolted on top.
 
-- **Small deltas, high frequency.** Kaspa's block rate (10+ bps) makes many small updates
-  the natural granularity, not one monolithic recomputation. The live v3 chain already moves
-  in ±5 steps. Design target: covenant-enforced delta caps and DAA-based rate limits, so a
-  single verdict is bounded by consensus, not by oracle restraint. (Caps are roadmap, not yet
-  in v3/v4 — today the bound is convention.)
-- **Decisions stay cheap.** When no single update can move state far, no single decision
-  carries much risk. A wrong verdict is corrected by subsequent evidence, the same way it
-  arrived — there is no rollback, and none is needed.
-- **Claims are interrogated, not trusted.** A verdict binds every field under one signature;
-  nonce prevents replay across steps, covenant_id prevents replay across covenants; the
-  signer's rejection tests prove each binding fails when tampered. Today one oracle key
-  gates a stream; the roadmap generalizes to quorums and juries, where a claim must survive
-  challenge rather than arrive by decree.
-- **Scope is part of the state.** A reputation stream measures one declared thing. Evidence
-  binds to its covenant_id, so a verdict earned in one topic cannot move another, and a
-  score cannot silently drift into meaning something it never measured. Cross-topic
-  composition happens by reading interfaces (see Ecosystem alignment), never by blending
-  streams.
+## How it works
+
+The reputation coin carries two values in its state: the reputation number and a nonce. The nonce goes up by one every time the reputation changes. It stops old approvals from being replayed.
+
+To move reputation, the oracle signs a verdict. A verdict is three things joined together: the amount of change, the current nonce, and the id of the specific covenant it applies to.
+
+```
+verdict = delta (8 bytes) || nonce (8 bytes) || covenant_id (32 bytes)
+```
+
+The oracle signs the hash of that verdict with a standard Schnorr signature. The spend transaction hands the covenant the verdict values and the signature. The covenant checks the signature on chain using Kaspa's checkSigFromStack opcode. If the signature is good, the nonce matches, and the covenant id matches, the spend goes through and reputation moves. If any of those are wrong, the network rejects it.
+
+Because the nonce is part of what gets signed, an old verdict cannot be reused. We proved this on chain: a transition was accepted, then the exact same approval was submitted again against the new state and the network rejected it.
 
 ## Status
 
-| Component | State |
-|---|---|
-| v3 covenant — reputation as UTXO state | Live on TN10. Genesis established, on-chain transitions confirmed (rep 100 → 105 → 110), enforced at the script layer. |
-| Off-chain verdict signer | Done. Standalone crate (`signer/`), 8 tests (5 rejection), CI on every push. |
-| v4 on-chain gate | In progress. Unblocked 2026-06-16 when the SilverScript compiler shipped a real `checkSigFromStack` (silverscript #132); contract gate and accept/reject harness are the current work. |
-| Mainnet | Gated on a SilverScript v1 stable release and independent review. |
+This is experimental and lives on Kaspa Testnet 10.
 
-## The signer
+Proven and live on TN10:
 
-```bash
-cd signer
-cargo test
-```
+- The covenant is deployed. Reputation has moved through real on chain transitions.
+- The replay protection works, verified with a rejected replay on chain.
+- The off chain signer is a standalone crate with a full test suite.
+- One spender tool drives any transition without code changes. It reads the current on chain state, signs against it, and submits.
 
-Eight tests, five of them rejection tests: a tampered delta, nonce, or covenant_id, or a
-wrong pubkey, must all fail verification.
+There is more coming. A web app is planned, and that is where the self erecting version of the protocol begins, the version that adjusts toward its goals without anyone privileged running it. If you want to see where this goes, follow the repo and check back.
 
-The signing format matches the engine's `OpCheckSigFromStack` exactly (pinned from txscript
-source): blake2b-256 over the 48-byte verdict, BIP340 schnorr over the 32-byte digest.
+## The bigger picture
 
-```bash
-cd signer
-cargo run --bin oracle_sign_verdict -- --delta 5 --nonce 0 --covenant-id <64-hex covenant id>
-```
-
-## Relationship to BitPhoque
-
-[BitPhoque](https://github.com/kyle4nia/BitPhoque) is this project's proving ground: a
-covenant-based fungible token live on TN10 with a working non-custodial browser wallet
-([bitphoque.org](https://bitphoque.org)). Supply conservation, leader/delegate multi-input
-transfers, sale/claim flows, fee and mass behavior, genesis establishment — all proven there
-in production covenant code before being relied on here. Patterns flow both ways; findings
-from both projects are reported upstream.
-
-## Ecosystem alignment
-
-State layouts are being designed toward the emerging KCC20 / Capsule direction: standard
-fields plus a virtual-extension digest, so consumer covenants can compile against the
-oracle's interface without knowing its internals (Open ICC). The `templateHash` builtin
-(silverscript #143) provides the commitment-opening primitive.
-
-Proposed RPC `getUtxosByCovenantId` would remove the last indexer-shaped dependency for both
-projects (parcel discovery in BitPhoque, live-head scan here).
-
-Production findings from both projects are posted to the kas-smith forum; issues and
-reproductions are filed against kaspanet/silverscript as they surface.
-
-Reviews, reproductions, and pull requests from people who work at this layer are welcome.
-
-## Layout
-
-```
-covenants/        SilverScript covenant sources (v3 live; v4 = detached-verdict gate)
-signer/           Off-chain oracle verdict signer (standalone crate + CI)
-rust-examples/    On-chain tooling (genesis establish, continuation spender, derivers)
-docs/             Canonical status doc, command reference, helper scripts
-```
-
-Canonical project state: `docs/oracle_protocol_status.md`.
-
-## Built on
-
-- [Kaspa](https://kaspa.org) — Toccata covenants, Testnet 10.
-- [SilverScript](https://github.com/kaspanet/silverscript) — the covenant language.
+Oracle Protocol is part of a set of interconnected projects built on the same idea, that decentralization is not a technical preference but the precondition for freedom that cannot be revoked. The reasoning behind it is laid out in *Revolution: A Practical Guide*.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+ISC.
